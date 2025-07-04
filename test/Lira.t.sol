@@ -10,6 +10,7 @@ contract LiraTest is Test {
     // Addresses for testing
     address Mohamed = makeAddr("Mohamed");
     address Ali = makeAddr("Ali");
+    address SmartContract = makeAddr("SmartContract");
     uint256 MohamedInitialBalance = 1000 * 10 ** 18; // 1000 LIRA with 18 decimals
 
     function setUp() public {
@@ -35,6 +36,26 @@ contract LiraTest is Test {
             balance,
             MohamedInitialBalance,
             "Mohamed's balance should be 1000 LIRA"
+        );
+    }
+
+    function testAllowancesWorks() public {
+        uint256 amountToAllow = 100 * 10 ** 18; // 100 LIRA with 18 decimals
+        // Mohamed approves another smart contract to spend 100 LIRA
+        vm.prank(Mohamed);
+        lira.approve(SmartContract, amountToAllow); // Approve 100 LIRA with 18 decimals
+        // Check the allowance
+        uint256 allowance = lira.allowance(Mohamed, SmartContract);
+        assertEq(allowance, amountToAllow, "Allowance should be 100 LIRA");
+        // Now, the smart contract can transfer 100 LIRA from Mohamed's account
+        vm.prank(SmartContract);
+        lira.transferFrom(Mohamed, SmartContract, 50 * 10 ** 18); // SmartContract transfers 50 LIRA from Mohamed's account
+        // Check balances after transfer
+        uint256 mohamedBalance = lira.balanceOf(Mohamed);
+        assertEq(
+            mohamedBalance,
+            MohamedInitialBalance - 50 * 10 ** 18,
+            "Mohamed's balance should be reduced by 50 LIRA"
         );
     }
 }
