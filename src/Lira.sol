@@ -6,4 +6,6 @@ contract Lira is ERC20 {
     constructor(uint256 intialSupply) ERC20("Lira", "LIRA") {
         _mint(msg.sender, intialSupply);
     }
+    // Additional functions can be added here if needed
+    // For example, you might want to add functions for minting, burning, etc.
 }
