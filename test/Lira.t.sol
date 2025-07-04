@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
+
 import {Test, console} from "forge-std/Test.sol";
 import {Lira} from "../src/Lira.sol";
 import {DeployLira} from "../script/DeployLira.s.sol";
@@ -7,15 +8,14 @@ import {DeployLira} from "../script/DeployLira.s.sol";
 contract LiraTest is Test {
     Lira public lira;
     DeployLira public deployLira;
-    // Addresses for testing
+
     address Mohamed = makeAddr("Mohamed");
     address Ali = makeAddr("Ali");
     address SmartContract = makeAddr("SmartContract");
-    uint256 MohamedInitialBalance = 1000 * 10 ** 18; // 1000 LIRA with 18 decimals
+    uint256 MohamedInitialBalance = 1000 * 10 ** 18;
 
     function setUp() public {
         deployLira = new DeployLira();
-        // Deploy the Lira contract with the initial supply
         lira = deployLira.run();
 
         vm.prank(msg.sender);
@@ -30,32 +30,98 @@ contract LiraTest is Test {
         assertEq(lira.symbol(), "LIRA");
     }
 
-    function testMohamedBalance() public view {
-        uint256 balance = lira.balanceOf(Mohamed);
+    function testDecimals() public view {
+        assertEq(lira.decimals(), 18);
+    }
+
+    function testTotalSupply() public view {
+        assertEq(lira.totalSupply(), 1_000_000 * 10 ** 18);
+    }
+
+    function testBalanceOf() public view {
+        assertEq(lira.balanceOf(Mohamed), MohamedInitialBalance);
+    }
+
+    function testTransfer() public {
+        vm.prank(Mohamed);
+        lira.transfer(Ali, 200 * 10 ** 18);
+
+        assertEq(lira.balanceOf(Ali), 200 * 10 ** 18);
         assertEq(
-            balance,
-            MohamedInitialBalance,
-            "Mohamed's balance should be 1000 LIRA"
+            lira.balanceOf(Mohamed),
+            MohamedInitialBalance - 200 * 10 ** 18
         );
     }
 
-    function testAllowancesWorks() public {
-        uint256 amountToAllow = 100 * 10 ** 18; // 100 LIRA with 18 decimals
-        // Mohamed approves another smart contract to spend 100 LIRA
+    function testTransferFailsWhenInsufficientBalance() public {
+        vm.expectRevert();
+        vm.prank(Ali);
+        lira.transfer(Mohamed, 10 * 10 ** 18);
+    }
+
+    function testApproveAndAllowance() public {
         vm.prank(Mohamed);
-        lira.approve(SmartContract, amountToAllow); // Approve 100 LIRA with 18 decimals
-        // Check the allowance
-        uint256 allowance = lira.allowance(Mohamed, SmartContract);
-        assertEq(allowance, amountToAllow, "Allowance should be 100 LIRA");
-        // Now, the smart contract can transfer 100 LIRA from Mohamed's account
+        lira.approve(SmartContract, 100 * 10 ** 18);
+        assertEq(lira.allowance(Mohamed, SmartContract), 100 * 10 ** 18);
+    }
+
+    function testApproveMultiple() public {
+        vm.startPrank(Mohamed);
+        lira.approve(SmartContract, 50 * 10 ** 18);
+        lira.approve(Ali, 30 * 10 ** 18);
+        vm.stopPrank();
+
+        assertEq(lira.allowance(Mohamed, SmartContract), 50 * 10 ** 18);
+        assertEq(lira.allowance(Mohamed, Ali), 30 * 10 ** 18);
+    }
+
+    function testApproveOverwrite() public {
+        vm.prank(Mohamed);
+        lira.approve(Ali, 100 * 10 ** 18);
+        vm.prank(Mohamed);
+        lira.approve(Ali, 50 * 10 ** 18);
+
+        assertEq(lira.allowance(Mohamed, Ali), 50 * 10 ** 18);
+    }
+
+    function testTransferFromSuccess() public {
+        vm.prank(Mohamed);
+        lira.approve(SmartContract, 100 * 10 ** 18);
+
         vm.prank(SmartContract);
-        lira.transferFrom(Mohamed, SmartContract, 50 * 10 ** 18); // SmartContract transfers 50 LIRA from Mohamed's account
-        // Check balances after transfer
-        uint256 mohamedBalance = lira.balanceOf(Mohamed);
+        lira.transferFrom(Mohamed, SmartContract, 60 * 10 ** 18);
+
+        assertEq(lira.balanceOf(SmartContract), 60 * 10 ** 18);
+        assertEq(lira.allowance(Mohamed, SmartContract), 40 * 10 ** 18);
         assertEq(
-            mohamedBalance,
-            MohamedInitialBalance - 50 * 10 ** 18,
-            "Mohamed's balance should be reduced by 50 LIRA"
+            lira.balanceOf(Mohamed),
+            MohamedInitialBalance - 60 * 10 ** 18
         );
+    }
+
+    function testTransferFromFailsWhenNoApproval() public {
+        vm.expectRevert();
+        vm.prank(SmartContract);
+        lira.transferFrom(Mohamed, SmartContract, 10 * 10 ** 18);
+    }
+
+    function testTransferFromFailsWhenInsufficientBalance() public {
+        vm.prank(Mohamed);
+        lira.approve(SmartContract, 2000 * 10 ** 18);
+
+        vm.expectRevert();
+        vm.prank(SmartContract);
+        lira.transferFrom(Mohamed, SmartContract, 1500 * 10 ** 18);
+    }
+
+    function testApproveSelfTransferFrom() public {
+        vm.prank(Mohamed);
+        lira.approve(Mohamed, 100 * 10 ** 18);
+
+        vm.prank(Mohamed);
+        lira.transferFrom(Mohamed, Mohamed, 50 * 10 ** 18);
+
+        assertEq(lira.balanceOf(Mohamed), MohamedInitialBalance);
+        assertEq(lira.allowance(Mohamed, Mohamed), 50 * 10 ** 18);
     }
 }
