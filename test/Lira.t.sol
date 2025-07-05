@@ -47,10 +47,7 @@ contract LiraTest is Test {
         lira.transfer(Ali, 200 * 10 ** 18);
 
         assertEq(lira.balanceOf(Ali), 200 * 10 ** 18);
-        assertEq(
-            lira.balanceOf(Mohamed),
-            MohamedInitialBalance - 200 * 10 ** 18
-        );
+        assertEq(lira.balanceOf(Mohamed), MohamedInitialBalance - 200 * 10 ** 18);
     }
 
     function testTransferFailsWhenInsufficientBalance() public {
@@ -93,10 +90,7 @@ contract LiraTest is Test {
 
         assertEq(lira.balanceOf(SmartContract), 60 * 10 ** 18);
         assertEq(lira.allowance(Mohamed, SmartContract), 40 * 10 ** 18);
-        assertEq(
-            lira.balanceOf(Mohamed),
-            MohamedInitialBalance - 60 * 10 ** 18
-        );
+        assertEq(lira.balanceOf(Mohamed), MohamedInitialBalance - 60 * 10 ** 18);
     }
 
     function testTransferFromFailsWhenNoApproval() public {
